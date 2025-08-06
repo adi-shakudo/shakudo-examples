@@ -1,0 +1,181 @@
+{
+    "mcpServers": {
+        "tavily-search": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "tavily-mcp"
+          ],
+          "env": {
+            "TAVILY_API_KEY": "TOREPLACE",
+            "NPM_CONFIG_REGISTRY": "http://verdaccio.hyperplane-verdaccio.svc.cluster.local:4873"
+          }
+        },
+        "dremio": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "@mcp-servers/dremio-mcp"
+          ],
+          "env": {
+            "NPM_CONFIG_REGISTRY": "http://verdaccio.hyperplane-verdaccio.svc.cluster.local:4873"
+          }
+        },
+        "gemini-cli": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "gemini-mcp-tool"
+          ],
+          "env": {}
+        },
+        "ClickUp": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@taazkareem/clickup-mcp-server@latest"
+          ],
+          "env": {
+            "CLICKUP_API_KEY": "TOREPLACE",
+            "CLICKUP_TEAM_ID": "TOREPLACE",
+            "DOCUMENT_SUPPORT": "true"
+          }
+        },
+        "hubspot": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@hubspot/mcp-server"
+          ],
+          "env": {
+            "PRIVATE_APP_ACCESS_TOKEN": "TOREPLACE"
+          }
+        },
+        "shakudo-platform": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "@mcp-servers/shakudo-platform-mcp"
+          ],
+          "env": {
+            "NPM_CONFIG_REGISTRY": "http://verdaccio.hyperplane-verdaccio.svc.cluster.local:4873"
+          }
+        },
+        "mattermost": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "mattermost-mcp"
+          ],
+          "env": {
+            "MATTERMOST_TOKEN": "TOREPLACE",
+            "MATTERMOST_TEAM": "shakudo-internal",
+            "MATTERMOST_URL": "http://mattermost-mattermost-enterprise-edition.hyperplane-mattermost.svc.cluster.local:8065/api/v4",
+            "MATTERMOST_WS_URL": "ws://mattermost-mattermost-enterprise-edition.hyperplane-mattermost.svc.cluster.local:8065/api/v4/websocket",
+            "NPM_CONFIG_REGISTRY": "http://verdaccio.hyperplane-verdaccio.svc.cluster.local:4873"
+          }
+        },
+        "agent-flow-app": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "mcp-remote",
+            "http://hyperplane-service-1c16ee.hyperplane-pipelines.svc.cluster.local:8787/api/agent-flow-mcp/mcp",
+            "--allow-http"
+          ],
+          "env": {}
+        },
+        "browser-use": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "mcp-remote",
+            "http://hyperplane-service-969d72.hyperplane-pipelines.svc.cluster.local:8787/api/mcp/mcp_1752843224575_97n54l5ne",
+            "--allow-http"
+          ],
+          "env": {}
+        },
+        "playwright": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "@playwright/mcp@latest",
+            "--headless",
+            "--caps=vision",
+            "--isolated",
+            "--no-sandbox"
+          ],
+          "env": {}
+        },
+        "supabase": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@modelcontextprotocol/server-postgres",
+            "postgresql://supabase_admin:TOREPLACE@supabase-metaflow-postgresql.hyperplane-supabase-metaflow.svc.cluster.local:5432/postgres"
+          ],
+          "env": {}
+        },
+        "context7": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@upstash/context7-mcp@latest"
+          ],
+          "env": {}
+        },
+        "clay": {
+          "type": "sse",
+          "url": "http://hyperplane-service-1dbd5d.hyperplane-pipelines.svc.cluster.local:8787/mcp"
+        },
+        "neo4j": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "@alanse/mcp-neo4j-server"
+          ],
+          "env": {
+            "NEO4J_URI": "bolt://neo4j.hyperplane-neo4j.svc.cluster.local:7687",
+            "NEO4J_USERNAME": "neo4j",
+            "NEO4J_PASSWORD": "Shakudo312!",
+            "NPM_CONFIG_REGISTRY": "http://verdaccio.hyperplane-verdaccio.svc.cluster.local:4873"
+          }
+        },
+        "superset": {
+          "type": "stdio",
+          "command": "uvx",
+          "args": [
+            "--index-url",
+            "http://pypiserver-pypiserver.hyperplane-pypiserver.svc.cluster.local:8080/simple/",
+            "--extra-index-url",
+            "https://pypi.org/simple/",
+            "superset-mcp"
+          ],
+          "env": {
+            "SUPERSET_BASE_URL": "http://superset.hyperplane-superset.svc.cluster.local:8088",
+            "SUPERSET_USERNAME": "admin@superset.com",
+            "SUPERSET_PASSWORD": "admin"
+          }
+        },
+        "Webresearcher": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "@pyroprompts/any-chat-completions-mcp"
+          ],
+          "env": {
+            "AI_CHAT_KEY": "dummy-key",
+            "AI_CHAT_NAME": "Shakbot",
+            "AI_CHAT_MODEL": "Webresearcher",
+            "AI_CHAT_BASE_URL": "http://hyperplane-service-620514.hyperplane-pipelines.svc.cluster.local:8787/api/openai/v1"
+          }
+        }
+    }
+}

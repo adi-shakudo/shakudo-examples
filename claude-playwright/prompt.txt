@@ -1,0 +1,1 @@
+Use playwright MCP to go to https://shakudo.io, navigate to Components in the top bar, make sure plotly exists, and if it does, then success. Else return fail.
