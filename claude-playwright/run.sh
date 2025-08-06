@@ -40,7 +40,7 @@ install_packages() {
     local packages=("$@")
     echo "Installing required packages: ${packages[*]}..."
     if command -v apt >/dev/null 2>&1; then
-        sudo apt update && sudo apt install -y "${packages[@]}"
+        apt update && apt install -y "${packages[@]}"
     else
         echo "Error: apt not found. Please install packages manually: ${packages[*]}"
         exit 1
@@ -63,8 +63,8 @@ fi
 if ! command -v node >/dev/null 2>&1; then
     echo "Node.js is required but not found. Installing Node.js..."
     if command -v apt >/dev/null 2>&1; then
-        curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-        sudo apt-get install -y nodejs
+        curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
+        apt-get install -y nodejs
     else
         echo "Error: Please install Node.js manually"
         exit 1
