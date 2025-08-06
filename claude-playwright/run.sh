@@ -74,7 +74,7 @@ fi
 # Check if Claude CLI is installed
 if ! command -v claude >/dev/null 2>&1; then
     echo "Claude CLI not found. Installing..."
-    npm install -g @anthropic-ai/claude-cli
+    npm install -g @anthropic-ai/claude
 fi
 
 # Read the mcp.json file and extract mcpServers
