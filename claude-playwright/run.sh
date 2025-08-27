@@ -92,8 +92,6 @@ fi
 # Update or create the mcpServers section in Claude settings
 jq --argjson mcpServers "$MCP_SERVERS" '.mcpServers = $mcpServers' ~/.claude/settings.json > ~/.claude/settings.json.tmp && mv ~/.claude/settings.json.tmp ~/.claude/settings.json
 
-sleep 3000
-
 # Use the prompt from schema.json or environment variable and pipe to claude command
 echo "$PROMPT" | claude --allowedTools Read,Write,Edit,Bash,Glob,Grep,LS,MultiEdit,NotebookRead,NotebookEdit,WebFetch,WebSearch,Task,mcp__playwright__*,playwright* --print "$@" --output-format stream-json --verbose
 
