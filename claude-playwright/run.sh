@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e  # Exit on any error
+set -o pipefail  # Exit on error in any part of a pipeline
 
 # Ensure PATH includes common binary locations
 export PATH="/usr/bin:/bin:/usr/local/bin:$PATH"
@@ -18,7 +19,6 @@ if [[ ! -f ~/.claude/anthropic_key.sh ]]; then
     else
         echo "Creating API key helper script..."
         cat > ~/.claude/anthropic_key.sh << EOF
-#!/bin/bash
 echo "$CLAUDE_API_KEY"
 EOF
         chmod +x ~/.claude/anthropic_key.sh
