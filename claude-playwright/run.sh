@@ -74,14 +74,20 @@ fi
 # Check if Claude CLI is installed
 if ! command -v claude >/dev/null 2>&1; then
     echo "Claude CLI not found. Installing..."
-    npm install -g @anthropic-ai/claude-code
+    npm i @anthropic-ai/claude-code@1.0.61
 fi
 
-# Read the mcp.json file and extract mcpServers
-MCP_SERVERS=$(cat mcp.json | jq '.mcpServers')
+# Read the schema.json file and extract mcpServers and prompt
+MCP_SERVERS=$(cat schema.json | jq '.mcpServers')
+PROMPT=$(cat schema.json | jq -r '.task.prompt')
+
+# Override prompt if AGENT_TASK_PROMPT environment variable is set
+if [[ -n "$AGENT_TASK_PROMPT" ]]; then
+    PROMPT="$AGENT_TASK_PROMPT"
+fi
 
 # Update or create the mcpServers section in Claude settings
 jq --argjson mcpServers "$MCP_SERVERS" '.mcpServers = $mcpServers' ~/.claude/settings.json > ~/.claude/settings.json.tmp && mv ~/.claude/settings.json.tmp ~/.claude/settings.json
 
-# Read prompt from prompt.txt and pipe to claude command
-cat prompt.txt | claude "$@"
+# Use the prompt from schema.json or environment variable and pipe to claude command
+echo "$PROMPT" | claude --allowedTools Read,Write,Edit,Bash,Glob,Grep,LS,MultiEdit,NotebookRead,NotebookEdit,WebFetch,WebSearch,Task,mcp__playwright__*,playwright* --print "$@" --output-format stream-json --verbose
