@@ -27,11 +27,14 @@ fi
 
 # Check if settings.json exists, if not create it with basic structure
 if [[ ! -f ~/.claude/settings.json ]]; then
-    echo '{"apiKeyHelper": "~/.claude/anthropic_key.sh"}' > ~/.claude/settings.json
+    echo '{"apiKeyHelper": "~/.claude/anthropic_key.sh", "model": "claude-sonnet-4-20250514"}' > ~/.claude/settings.json
 else
-    # Ensure apiKeyHelper is set in existing settings.json
+    # Ensure apiKeyHelper and model are set in existing settings.json
     if ! jq -e '.apiKeyHelper' ~/.claude/settings.json >/dev/null 2>&1; then
         jq '.apiKeyHelper = "~/.claude/anthropic_key.sh"' ~/.claude/settings.json > ~/.claude/settings.json.tmp && mv ~/.claude/settings.json.tmp ~/.claude/settings.json
+    fi
+    if ! jq -e '.model' ~/.claude/settings.json >/dev/null 2>&1; then
+        jq '.model = "claude-sonnet-4-20250514"' ~/.claude/settings.json > ~/.claude/settings.json.tmp && mv ~/.claude/settings.json.tmp ~/.claude/settings.json
     fi
 fi
 
