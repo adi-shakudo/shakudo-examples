@@ -1,0 +1,162 @@
+type: llm
+provider: ollama_llm
+timeout: 120
+models:
+- model: "llama3.1:latest"
+  api_base: http://ollama.hyperplane-ollama:11434/
+  kwargs:
+    temperature: 0
+    n: 1
+    seed: 0
+    num_ctx: 7000
+
+---
+type: embedder
+provider: ollama_embedder
+models:
+  - model: "mxbai-embed-large:latest"
+    dimension: 1024
+timeout: 600
+url: "http://ollama.hyperplane-ollama:11434/"
+
+---
+type: engine
+provider: wren_ui
+endpoint: "http://frontend:3000"
+
+---
+type: document_store
+provider: qdrant
+location: "http://qdrant.hyperplane-qdrant.svc.cluster.local:6333"
+embedding_model_dim: 1024  # put your embedding model dimension here
+timeout: 600
+recreate_index: false
+
+---
+type: pipeline
+pipes:
+  - name: db_schema_indexing
+    embedder: "ollama_embedder.mxbai-embed-large:latest"
+    document_store: qdrant
+  - name: historical_question_indexing
+    embedder: "ollama_embedder.mxbai-embed-large:latest"
+    document_store: qdrant
+  - name: table_description_indexing
+    embedder: "ollama_embedder.mxbai-embed-large:latest"
+    document_store: qdrant
+  - name: db_schema_retrieval
+    llm: "ollama_llm.llama3.1:latest"
+    embedder: "ollama_embedder.mxbai-embed-large:latest"
+    document_store: qdrant
+  - name: historical_question_retrieval
+    embedder: "ollama_embedder.mxbai-embed-large:latest"
+    document_store: qdrant
+  - name: sql_generation
+    llm: "ollama_llm.llama3.1:latest"
+    engine: wren_ui
+  - name: sql_correction
+    llm: "ollama_llm.llama3.1:latest"
+    engine: wren_ui
+  - name: followup_sql_generation
+    llm: "ollama_llm.llama3.1:latest"
+    engine: wren_ui
+  - name: sql_summary
+    llm: "ollama_llm.llama3.1:latest"
+  - name: sql_answer
+    llm: "ollama_llm.llama3.1:latest"
+  - name: sql_breakdown
+    llm: "ollama_llm.llama3.1:latest"
+    engine: wren_ui
+  - name: sql_expansion
+    llm: "ollama_llm.llama3.1:latest"
+    engine: wren_ui
+  - name: sql_explanation
+    llm: "ollama_llm.llama3.1:latest"
+  - name: sql_regeneration
+    llm: "ollama_llm.llama3.1:latest"
+    engine: wren_ui
+  - name: instructions_indexing
+    embedder: ollama_embedder.mxbai-embed-large:latest
+    document_store: qdrant
+  - name: instructions_retrieval
+    embedder: ollama_embedder.mxbai-embed-large:latest
+    document_store: qdrant
+  - name: project_meta_indexing
+    document_store: qdrant
+  - name: sql_tables_extraction
+    llm: ollama_llm.llama3.1:latest
+  - name: misleading_assistance
+    llm: ollama_llm.llama3.1:latest
+  - name: user_guide_assistance
+    llm: ollama_llm.llama3.1:latest
+  - name: followup_sql_generation_reasoning
+    llm: ollama_llm.llama3.1:latest
+  - name: sql_functions_retrieval
+    engine: wren_ibis
+    document_store: qdrant
+  - name: semantics_description
+    llm: "ollama_llm.llama3.1:latest"
+  - name: relationship_recommendation
+    llm: "ollama_llm.llama3.1:latest"
+    engine: wren_ui
+  - name: question_recommendation
+    llm: "ollama_llm.llama3.1:latest"
+  - name: question_recommendation_db_schema_retrieval
+    llm: "ollama_llm.llama3.1:latest"
+    embedder: "ollama_embedder.mxbai-embed-large:latest"
+    document_store: qdrant
+  - name: question_recommendation_sql_generation
+    llm: "ollama_llm.llama3.1:latest"
+    engine: wren_ui
+  - name: intent_classification
+    llm: "ollama_llm.llama3.1:latest"
+    embedder: "ollama_embedder.mxbai-embed-large:latest"
+    document_store: qdrant
+  - name: data_assistance
+    llm: "ollama_llm.llama3.1:latest"
+  - name: sql_pairs_indexing
+    document_store: qdrant
+    embedder: "ollama_embedder.mxbai-embed-large:latest"
+  - name: sql_pairs_deletion
+    document_store: qdrant
+    embedder: "ollama_embedder.mxbai-embed-large:latest"
+  - name: sql_pairs_retrieval
+    document_store: qdrant
+    embedder: "ollama_embedder.mxbai-embed-large:latest"
+    llm: "ollama_llm.llama3.1:latest"
+  - name: preprocess_sql_data
+    llm: "ollama_llm.llama3.1:latest"
+  - name: sql_executor
+    engine: wren_ui
+  - name: chart_generation
+    llm: "ollama_llm.llama3.1:latest"
+  - name: chart_adjustment
+    llm: "ollama_llm.llama3.1:latest"
+  - name: sql_question_generation
+    llm: "ollama_llm.llama3.1:latest"
+  - name: sql_generation_reasoning
+    llm: "ollama_llm.llama3.1:latest"
+
+---
+settings:
+  engine_timeout: 30
+  column_indexing_batch_size: 50
+  table_retrieval_size: 10
+  table_column_retrieval_size: 100
+  allow_intent_classification: true
+  allow_sql_generation_reasoning: true
+  allow_sql_functions_retrieval: true
+  allow_using_db_schemas_without_pruning: false
+  enable_column_pruning: false
+  max_sql_correction_retries: 3
+  query_cache_maxsize: 1000
+  query_cache_ttl: 3600
+  langfuse_host: https://cloud.langfuse.com
+  langfuse_enable: false
+  logging_level: DEBUG
+  development: false
+  historical_question_retrieval_similarity_threshold: 0.9
+  sql_pairs_similarity_threshold: 0.7
+  sql_pairs_retrieval_max_size: 10
+  instructions_similarity_threshold: 0.7
+  instructions_top_k: 10
