@@ -1,7 +1,7 @@
 { 
   "agentFramework": "claude",
   "task": {
-    "prompt": "Use playwright MCP to go to https://shakudo.io and go to the Components page. Check if Dify exists. Scroll down on the Components page if needed. If it does exist, then return pass. Otherwise, fail."
+    "prompt": " please Use playwright MCP to go to https://shakudo.io and go to the Components page. Check if Dify exists. Scroll down on the Components page if needed. If it does exist, then return pass. Otherwise, fail."
   },
   "mcpServers": {
     "tavily-search": {
