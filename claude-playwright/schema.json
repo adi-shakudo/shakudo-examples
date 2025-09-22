@@ -1,7 +1,7 @@
 { 
   "agentFramework": "claude",
   "task": {
-    "prompt": "Use playwright MCP to go to https://shakudo.io and go to the Components page. Check if Dify exists. Scroll down on the Components page if needed. If it does exist, then return pass. Otherwise, fail."
+    "prompt": "Using Playwright MCP, perform the following steps: 1. Navigate to https://eirinquiry.apmterminals.com/?locid=lsa 2. Enter `MRSU6661051` in the **Container ID** field. 3. Enter `06/10/2025` in the **Arrival Date** field. 4. Click the **Search** button. 5. After results load, check the following:\n   - The **Driver ID** is `9G56011`.\n   - The **Scale Weight** is `34180 LB`.\n\nIf both values match exactly, return `PASS`. If either value differs, return `FAIL`."
   },
   "mcpServers": {
     "tavily-search": {
