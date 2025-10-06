@@ -24,8 +24,8 @@ class GraphRAGIngestor:
         self.ollama_host = "http://ollama-1.hyperplane-ollama-gpu-1.svc.cluster.local:11434"
     
         username = "shakudo_svc"
-        access_key = "PSFBSAZRMKMLKEHHEBPPOPFINJGCBGMJLNPFOJNNF"
-        secret_key = "C710E5FDb9c61269+2cfd+58A1104D1c8c2dc7LJFF"
+        access_key = "PSF"
+        secret_key = "C7"
         endpoint_url = "https://flashblade-data.campbell.com"
         self.s3 = boto3.client(
             "s3",
