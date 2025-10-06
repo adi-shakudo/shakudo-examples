@@ -24,8 +24,8 @@ class GraphRAGIngestor:
         self.ollama_host = "http://ollama-1.hyperplane-ollama-gpu-1.svc.cluster.local:11434"
     
         username = "shakudo_svc"
-        access_key = "PS....."
-        secret_key = "C71......"
+        access_key = "PSFBSAZRMKMLKEHHEBPPOPFINJGCBGMJLNPFOJNNF"
+        secret_key = "C710E5FDb9c61269+2cfd+58A1104D1c8c2dc7LJFF"
         endpoint_url = "https://flashblade-data.campbell.com"
         self.s3 = boto3.client(
             "s3",
@@ -129,6 +129,7 @@ class GraphRAGIngestor:
             print(f"[ERROR] Failed to update processed_files.txt: {e}")
 
     # ---------------- [END] Pull PDFS from Flashblade ------------------
+
     def extract_text_from_pdf(self, pdf_path: str) -> str:
         """Extract text from PDF file"""
         try:
@@ -160,7 +161,8 @@ class GraphRAGIngestor:
     def get_embedding(self, text: str) -> List[float]:
         """Get embedding from Ollama"""
         try:
-            response = ollama.embeddings(
+            client = ollama.Client(host=self.ollama_host)
+            response = client.embeddings(
                 model=self.embedding_model,
                 prompt=text
             )

@@ -381,7 +381,6 @@ if __name__ == '__main__':
         logger.info("  GET  /health - Health check")
         logger.info("  POST /search/chunks - Search similar chunks")
         logger.info("  POST /search/questions - Search similar questions")
-        logger.info("  POST /lownload - Download pdf files and ingest")
         logger.info("  POST /query - Query relevant chunks (no AI generation)")
         logger.info("  POST /ask - AI-generated answer with source summaries")
         logger.info("  GET  /stats - Get knowledge graph statistics")
