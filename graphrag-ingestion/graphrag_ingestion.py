@@ -283,25 +283,49 @@ Text chunk:
         
         print(f"Successfully ingested {pdf_path}")
     
-    def ingest_all_pdfs(self, folder_path: str = "."):
-        """Ingest all PDF files in the folder"""
-        pdf_files = list(Path(folder_path).glob("*.pdf"))
-        
+    def ingest_all_pdfs(self, folder_path: str = "pdfs"):
+        """Ingest all new PDF files in the folder and clean them up after processing"""
+        folder = Path(folder_path)
+        processed_file_path = folder / "processed_files.txt"
+
+        # Ensure processed_files.txt exists
+        processed_files = set()
+        if processed_file_path.exists():
+            with open(processed_file_path, "r") as f:
+                processed_files = set(line.strip() for line in f if line.strip())
+
+        # Find all PDFs in folder
+        pdf_files = list(folder.glob("*.pdf"))
         if not pdf_files:
             print(f"No PDF files found in {folder_path}")
             return
-        
-        print(f"Found {len(pdf_files)} PDF files")
-        
-        # Create graph schema
+
+        print(f"Found {len(pdf_files)} PDF files, {len(processed_files)} already processed")
+
+        # Create schema once
         self.create_graph_schema()
-        
-        # Process each PDF
+
         for pdf_file in pdf_files:
+            if pdf_file.name in processed_files:
+                print(f"Skipping {pdf_file.name} (already processed)")
+                continue
+
             try:
                 self.ingest_document(str(pdf_file))
+                print(f"✅ Successfully ingested {pdf_file.name}")
+
+                # Mark as processed
+                with open(processed_file_path, "a") as f:
+                    f.write(f"{pdf_file.name}\n")
+                processed_files.add(pdf_file.name)
+
+                # Remove the file after successful ingestion
+                pdf_file.unlink()
+                print(f"🗑️ Removed {pdf_file.name} from {folder_path}")
+
             except Exception as e:
-                print(f"Error processing {pdf_file}: {e}")
+                print(f"❌ Error processing {pdf_file}: {e}")
+
     
     def close(self):
         """Close Neo4j driver"""
@@ -320,4 +344,4 @@ def main():
         ingestor.close()
 
 if __name__ == "__main__":
-    main() 
+    main()
