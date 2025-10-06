@@ -25,7 +25,7 @@ class GraphRAGIngestor:
     
         username = "shakudo_svc"
         access_key = "PS....."
-        secret_key = "C71....."
+        secret_key = "C71......"
         endpoint_url = "https://flashblade-data.campbell.com"
         self.s3 = boto3.client(
             "s3",
@@ -34,17 +34,101 @@ class GraphRAGIngestor:
             aws_secret_access_key=secret_key,
             verify=False  # disable SSL cert check
         )
-
+# ---------------- [START] Pull PDFS from Flashblade ------------------
     def download_pdfs(self, bucket: str, download_dir: str):
+        print(f"[INFO] Ensuring download directory exists: {download_dir}")
         Path(download_dir).mkdir(parents=True, exist_ok=True)
-        response = self.s3.list_objects_v2(Bucket=bucket)
-        for obj in response.get("Contents", []):
-            key = obj["Key"]
-            if key.lower().endswith(".pdf"):
-                local_path = Path(download_dir) / Path(key).name
+
+        processed_file_key = "processed_files.txt"
+        local_processed_file = Path(download_dir) / processed_file_key
+
+        print("[INFO] Loading processed files from bucket...")
+        processed_files = self._load_processed_files(bucket, local_processed_file, processed_file_key)
+
+        print("[INFO] Listing new PDFs in the bucket...")
+        new_files = self._list_new_pdfs(bucket, processed_files)
+
+        if not new_files:
+            print("[INFO] No new PDF files to download.")
+            return list(Path(download_dir).glob("*.pdf"))
+
+        print("[INFO] Downloading new PDF files...")
+        downloaded_files = self._download_new_files(bucket, new_files, download_dir)
+
+        print("[INFO] Updating processed files log in the bucket...")
+        processed_files.update(new_files)
+        self._update_processed_files(bucket, local_processed_file, processed_file_key, processed_files)
+
+        print(f"[INFO] Download completed. Total downloaded: {len(downloaded_files)} files.")
+        return downloaded_files
+
+    # -----------------------------
+    # Helper functions
+    # -----------------------------
+    
+    def _load_processed_files(self, bucket: str, local_file: Path, s3_key: str):
+        """Download and load processed_files.txt from the bucket. Create locally if it doesn't exist."""
+        processed_files = set()
+        try:
+            print(f"[DEBUG] Attempting to download {s3_key} from bucket {bucket}...")
+            self.s3.download_file(bucket, s3_key, str(local_file))
+            with open(local_file) as f:
+                processed_files = set(line.strip() for line in f)
+            print(f"[INFO] Loaded {len(processed_files)} processed files from bucket.")
+        except self.s3.exceptions.NoSuchKey:
+            # File doesn't exist in the bucket yet, create empty local file
+            print("[WARN] processed_files.txt not found in bucket. Creating new local file.")
+            local_file.touch(exist_ok=True)
+        except Exception as e:
+            print(f"[ERROR] Failed to load processed_files.txt: {e}")
+            # still create empty local file to allow updates
+            local_file.touch(exist_ok=True)
+
+        return processed_files
+
+    def _list_new_pdfs(self, bucket: str, processed_files: set):
+        """List all PDFs in the bucket that haven't been processed yet."""
+        try:
+            response = self.s3.list_objects_v2(Bucket=bucket)
+            all_files = response.get("Contents", [])
+            print(f"[DEBUG] Total objects in bucket: {len(all_files)}")
+            new_files = [
+                obj["Key"]
+                for obj in all_files
+                if obj["Key"].lower().endswith(".pdf") and obj["Key"] not in processed_files
+            ]
+            print(f"[INFO] Found {len(new_files)} new PDF(s) to download.")
+        except Exception as e:
+            print(f"[ERROR] Failed to list objects in bucket: {e}")
+            new_files = []
+        return new_files
+
+    def _download_new_files(self, bucket: str, new_files: list, download_dir: str):
+        """Download new PDFs and return the local file paths."""
+        downloaded_files = []
+        for key in new_files:
+            local_path = Path(download_dir) / Path(key).name
+            try:
+                print(f"[DEBUG] Downloading {key} to {local_path}...")
                 self.s3.download_file(bucket, key, str(local_path))
-        return list(Path(download_dir).glob("*.pdf"))
-        
+                downloaded_files.append(local_path)
+            except Exception as e:
+                print(f"[ERROR] Failed to download {key}: {e}")
+        return downloaded_files
+
+    def _update_processed_files(self, bucket: str, local_file: Path, s3_key: str, processed_files: set):
+        """Update processed_files.txt locally and push it back to the bucket."""
+        try:
+            with open(local_file, "w") as f:
+                for key in sorted(processed_files):
+                    f.write(f"{key}\n")
+            print(f"[DEBUG] Uploading updated {s3_key} back to bucket {bucket}...")
+            self.s3.upload_file(str(local_file), bucket, s3_key)
+            print("[INFO] processed_files.txt updated successfully in the bucket.")
+        except Exception as e:
+            print(f"[ERROR] Failed to update processed_files.txt: {e}")
+
+    # ---------------- [END] Pull PDFS from Flashblade ------------------
     def extract_text_from_pdf(self, pdf_path: str) -> str:
         """Extract text from PDF file"""
         try:
