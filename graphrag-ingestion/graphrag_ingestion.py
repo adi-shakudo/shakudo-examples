@@ -24,8 +24,8 @@ class GraphRAGIngestor:
         self.ollama_host = "http://ollama-1.hyperplane-ollama-gpu-1.svc.cluster.local:11434"
     
         username = "shakudo_svc"
-        access_key = "PSF"
-        secret_key = "C7"
+        access_key = "PSFBSAZRMKMLKEHHEBPPOPFINJGCBGMJLNPFOJNNF"
+        secret_key = "C710E5FDb9c61269+2cfd+58A1104D1c8c2dc7LJFF"
         endpoint_url = "https://flashblade-data.campbell.com"
         self.s3 = boto3.client(
             "s3",
@@ -179,7 +179,8 @@ Text chunk:
 {chunk_text[:500]}..."""
         
         try:
-            response = ollama.chat(
+            client = ollama.Client(host=self.ollama_host)  # <--- use client
+            response = client.chat(
                 model=self.chat_model,
                 messages=[
                     {"role": "user", "content": prompt}
@@ -284,11 +285,11 @@ Text chunk:
         print(f"Successfully ingested {pdf_path}")
     
     def ingest_all_pdfs(self, folder_path: str = "pdfs"):
-        """Ingest all new PDF files in the folder and clean them up after processing"""
+        """Ingest all PDF files in the folder that haven't been ingested yet"""
         folder = Path(folder_path)
-        processed_file_path = folder / "processed_files.txt"
+        processed_file_path = folder / "processed_files_ingested.txt"
 
-        # Ensure processed_files.txt exists
+        # Load already ingested files
         processed_files = set()
         if processed_file_path.exists():
             with open(processed_file_path, "r") as f:
@@ -300,21 +301,21 @@ Text chunk:
             print(f"No PDF files found in {folder_path}")
             return
 
-        print(f"Found {len(pdf_files)} PDF files, {len(processed_files)} already processed")
+        print(f"Found {len(pdf_files)} PDF files, {len(processed_files)} already ingested")
 
         # Create schema once
         self.create_graph_schema()
 
         for pdf_file in pdf_files:
             if pdf_file.name in processed_files:
-                print(f"Skipping {pdf_file.name} (already processed)")
+                print(f"Skipping {pdf_file.name} (already ingested)")
                 continue
 
             try:
                 self.ingest_document(str(pdf_file))
                 print(f"✅ Successfully ingested {pdf_file.name}")
 
-                # Mark as processed
+                # Mark as ingested
                 with open(processed_file_path, "a") as f:
                     f.write(f"{pdf_file.name}\n")
                 processed_files.add(pdf_file.name)
@@ -344,4 +345,4 @@ def main():
         ingestor.close()
 
 if __name__ == "__main__":
-    main()
+    main() 

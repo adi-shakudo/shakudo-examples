@@ -235,14 +235,20 @@ def download_pdfs():
         print("📝 Chunk nodes with text and embeddings")
         print("❓ Question nodes with generated questions and embeddings")
         print("🔗 Relationships: Document -> Chunk -> Question")
-        
+        return jsonify({
+            "status": "success",
+            "message": f"Ingested {len(pdf_files)} PDFs successfully."
+        }), 200
     except Exception as e:
         print(f"❌ Error during ingestion: {e}")
         print("\nPlease check:")
         print("- Neo4j is running at bolt://neo4j.hyperplane-neo4j:7687")
         print("- Ollama is running with models: nomic-embed-text:latest and granite-3.3-8b-instruct-Q6_K_L:latest")
         print("- PDF files are present in the current directory")
-        
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
     finally:
         ingestor.close()
 
@@ -392,4 +398,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         logger.info("Shutting down GraphRAG API server...")
     finally:
-        graphrag.close() 
+        graphrag.close()
