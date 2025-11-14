@@ -15,7 +15,7 @@ source venv/bin/activate
 
 # Install/update dependencies
 echo "📦 Installing/updating Python dependencies..."
-pip install -r requirements.txt
+pip install -r parquet-converter/requirements.txt
 
 echo ""
 echo "🌐 Starting Parquet Converter API server on http://localhost:8000..."
@@ -43,5 +43,5 @@ echo "  4. Response will contain 'data' array ready for MongoDB insertMany"
 echo ""
 
 # Start the FastAPI server
-python app.py
+python parquet-converter/app.py
 
