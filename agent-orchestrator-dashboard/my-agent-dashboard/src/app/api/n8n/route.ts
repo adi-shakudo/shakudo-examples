@@ -1,9 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
-const N8N_BASE_URL = process.env.N8N_BASE_URL;
-const N8N_API_KEY = process.env.N8N_API_KEY;
+// Using the non-null assertion (!) or providing a fallback string ('') 
+// fixes the "string | undefined is not assignable to string" error.
+const N8N_BASE_URL = process.env.N8N_BASE_URL || "";
+const N8N_API_KEY = process.env.N8N_API_KEY || "";
 
 export async function GET() {
+  // Guard clause to catch configuration issues early
+  if (!N8N_BASE_URL || !N8N_API_KEY) {
+    console.error("CRITICAL ERROR: Environment variables N8N_BASE_URL or N8N_API_KEY are missing.");
+    return NextResponse.json({ error: "Server configuration missing" }, { status: 500 });
+  }
   try {
     let allWorkflows: any[] = []
     let nextCursor: string | null = null
