@@ -70,9 +70,7 @@ for ((i=0; i<"${DAYS_BACK}"; i++)); do
     --procs "${PROCS}"
 
   echo "Uploading ${RUN_DATE} to MinIO..."
-  aws --endpoint-url "${MINIO_ENDPOINT}" s3 cp \
-    "${OUTDIR}" "s3://${MINIO_BUCKET}/${MINIO_PREFIX}/" \
-    --recursive
+  aws --endpoint-url "${MINIO_ENDPOINT}" s3 cp "${OUTDIR}/" "s3://${MINIO_BUCKET}/${MINIO_PREFIX}/" --recursive
 done
 
 echo "All ${DAYS_BACK} runs completed successfully 🎉"

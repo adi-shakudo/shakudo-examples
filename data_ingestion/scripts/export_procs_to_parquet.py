@@ -44,6 +44,28 @@ def cursor_to_df(cur) -> pd.DataFrame:
     rows = cur.fetchall()
     return pd.DataFrame.from_records(rows, columns=cols)
 
+PUNCHTIME_COLS = {
+    "start_punchtime",
+    "end_punchtime",
+    "start_punch_time",
+    "end_punch_time",
+}
+
+def normalize_punchtime_cols(df: pd.DataFrame) -> pd.DataFrame:
+    for col in df.columns:
+        if col.lower() in PUNCHTIME_COLS:
+            s = df[col]
+
+            # If already datetime-like, format as ISO string
+            if pd.api.types.is_datetime64_any_dtype(s):
+                df[col] = s.dt.strftime("%Y-%m-%d %H:%M:%S").astype("string")
+            else:
+                # Force everything else (ints, floats, objects) to nullable string
+                # Keep nulls as <NA> instead of "nan"
+                df[col] = s.where(~pd.isna(s), pd.NA).astype("string")
+
+    return df
+
 def connect() -> pyodbc.Connection:
     username = os.environ["MCP_DB_USERNAME"]
     password = os.environ["MCP_DB_PASSWORD"]
@@ -80,6 +102,9 @@ def run_proc(cur, proc_key: str, m: dict, date_start: str, date_end: str) -> pd.
 
 def write_df(df: pd.DataFrame, out_path: str, metadata: dict):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    # normalize problematic columns so schema is stable across files
+    df = normalize_punchtime_cols(df)
+    
     # add light lineage columns (helps debugging)
     for k, v in metadata.items():
         df[f"_meta_{k}"] = v
