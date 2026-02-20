@@ -207,7 +207,10 @@ with tab1:
     with col3:
         st.markdown("#### Response Time Distribution")
         hist_data = np.random.exponential(20, 1000)
-        st.bar_chart(pd.DataFrame(hist_data).value_counts().head(20))
+        hist_df = pd.DataFrame(
+            {"Response Time (ms)": np.histogram(hist_data, bins=20)[0]}
+        )
+        st.bar_chart(hist_df)
 
     with col4:
         st.markdown("#### Service Health")
