@@ -1,5 +1,5 @@
 #!/bin/bash
-cd nlp-sql-v2/
+# Working directory is already /tmp/git/monorepo/nlp-sql-v2/
 
 apt-get update -y && apt-get upgrade -y
 apt-get install -y dnsutils postgresql
