@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import AsyncGenerator
 from uuid import uuid4
 
-from app.models.schemas import Citation, Draft, SearchResult
+from app.models.schemas import Citation, Draft, DraftManualSave, SearchResult
 from app.services import database
 from app.services.audit_service import audit_service
 from app.services.document_service import document_service
@@ -23,34 +23,97 @@ class DraftService:
 
         documents = await document_service.list_documents()
         selected_documents = [doc for doc in documents if doc.id in doc_ids]
-        yield self._sse({'type': 'status', 'message': f'Retrieving relevant passages from {len(selected_documents)} documents...'})
-        await asyncio.sleep(0.15)
+        if not selected_documents:
+            yield self._sse({'type': 'error', 'message': 'Select at least one source document before generating a draft'})
+            return
+
+        message = f'Retrieving relevant passages from {len(selected_documents)} documents'
+        yield self._stage('retrieval', message, progress=0.08, mode='generate', status='started')
+        await asyncio.sleep(0.08)
 
         retrieved = await retrieval_service.retrieve_relevant_chunks(instruction, doc_ids, limit=10)
         retrieval_summary = retrieval_service.summarize_retrieval(retrieved)
-        yield self._sse({'type': 'status', 'message': f"Found {retrieval_summary['total_chunks']} relevant passages across {retrieval_summary['documents_hit']} documents"})
-        await asyncio.sleep(0.1)
-
-        citations = self._build_citations(template.sections, retrieved)
-        yield self._sse({'type': 'citations', 'citations': [citation.model_dump() for citation in citations]})
-
-        context = retrieval_service.build_context(retrieved)
-        yield self._sse({'type': 'status', 'message': f'Building grounded context package ({len(context.split())} words)'})
-        await asyncio.sleep(0.1)
-
-        generated_sections = await self._generate_sections(
-            section_specs=[(section.id, section.title) for section in template.sections],
-            instruction=instruction,
-            selected_documents=selected_documents,
-            retrieved=retrieved,
+        yield self._sse(
+            {
+                'type': 'retrieval',
+                'mode': 'generate',
+                'summary': retrieval_summary,
+                'results': [item.model_dump() for item in retrieved],
+            }
+        )
+        yield self._stage(
+            'retrieval',
+            f"Retrieved {retrieval_summary['total_chunks']} passages across {retrieval_summary['documents_hit']} documents",
+            progress=0.2,
+            mode='generate',
+            status='completed',
         )
 
-        for section in template.sections:
-            yield self._sse({'type': 'status', 'message': f'Drafting {section.title}...'})
-            for piece in self._chunk_text(generated_sections[section.id], chunk_size=140):
-                yield self._sse({'type': 'content', 'section': section.id, 'text': piece})
-                await asyncio.sleep(0.03)
+        citations = self._build_citations(template.sections, retrieved)
+        yield self._sse({'type': 'citations', 'mode': 'generate', 'citations': [citation.model_dump() for citation in citations]})
 
+        context = retrieval_service.build_context(retrieved)
+        yield self._stage(
+            'context',
+            f'Assembled grounded context package ({len(context.split())} words)',
+            progress=0.32,
+            mode='generate',
+            status='completed',
+        )
+        await asyncio.sleep(0.06)
+
+        yield self._stage(
+            'planning',
+            f'Planned {len(template.sections)} board-ready sections',
+            progress=0.42,
+            mode='generate',
+            status='completed',
+            sections=[section.model_dump() for section in template.sections],
+        )
+
+        generated_sections: dict[str, str] = {}
+        total_sections = max(len(template.sections), 1)
+        for index, section in enumerate(template.sections, start=1):
+            section_progress = 0.42 + ((index - 1) / total_sections) * 0.42
+            yield self._stage(
+                'drafting',
+                f'Drafting {section.title}',
+                progress=section_progress,
+                mode='generate',
+                status='started',
+                section=section.id,
+                section_title=section.title,
+            )
+            section_text = self._compose_section(
+                section.id,
+                section.title,
+                instruction,
+                selected_documents,
+                retrieved,
+            )
+            generated_sections[section.id] = section_text
+            for piece in self._chunk_text(section_text, chunk_size=140):
+                yield self._sse(
+                    {
+                        'type': 'content',
+                        'mode': 'generate',
+                        'section': section.id,
+                        'section_title': section.title,
+                        'text': piece,
+                    }
+                )
+                await asyncio.sleep(0.025)
+            yield self._stage(
+                'drafting',
+                f'{section.title} ready',
+                progress=section_progress + (0.42 / total_sections),
+                mode='generate',
+                status='completed',
+                section=section.id,
+                section_title=section.title,
+            )
+
+        yield self._stage('persistence', 'Persisting draft lineage and audit metadata', progress=0.92, mode='generate', status='started')
         draft_id = f'draft_{uuid4().hex[:10]}'
         draft = Draft(
             id=draft_id,
@@ -70,9 +133,23 @@ class DraftService:
             'draft.generated',
             'draft',
             draft.id,
-            {'template_id': template_id, 'document_ids': doc_ids, 'instruction': instruction},
+            {
+                'template_id': template_id,
+                'document_ids': doc_ids,
+                'instruction': instruction,
+                'retrieval_summary': retrieval_summary,
+            },
         )
-        yield self._sse({'type': 'done', 'draft_id': draft_id})
+        yield self._stage(
+            'persistence',
+            f'Draft saved as {draft_id}',
+            progress=0.99,
+            mode='generate',
+            status='completed',
+            draft_id=draft_id,
+            version=1,
+        )
+        yield self._sse({'type': 'done', 'mode': 'generate', 'draft_id': draft_id, 'version': 1, 'title': draft.title})
 
     async def refine_draft_stream(self, draft_id: str, instruction: str, section_ids: list[str] | None = None) -> AsyncGenerator[str, None]:
         original = await self.get_draft(draft_id)
@@ -85,38 +162,101 @@ class DraftService:
             yield self._sse({'type': 'error', 'message': 'Template for draft not found'})
             return
 
-        target_sections = section_ids or list(original.content.keys())
-        yield self._sse({'type': 'status', 'message': f'Refining {len(target_sections)} section(s) with grounded context...'})
-        retrieved = await retrieval_service.retrieve_relevant_chunks(instruction, original.working_set, limit=8)
-        citations = self._build_citations(template.sections, retrieved)
-        yield self._sse({'type': 'citations', 'citations': [citation.model_dump() for citation in citations]})
-
         documents = await document_service.list_documents()
         selected_documents = [doc for doc in documents if doc.id in original.working_set]
-        section_specs = []
-        for section in template.sections:
-            if section.id in target_sections:
-                section_specs.append((section.id, section.title))
+        if not selected_documents:
+            yield self._sse({'type': 'error', 'message': 'Original working set is no longer available'})
+            return
 
-        refined_sections = await self._generate_sections(
-            section_specs=section_specs,
-            instruction=f'Refine the existing draft with this request: {instruction}',
-            selected_documents=selected_documents,
-            retrieved=retrieved,
-            prior_content=original.content,
+        target_sections = section_ids or list(original.content.keys())
+        yield self._stage(
+            'retrieval',
+            f'Retrieving grounded context for {len(target_sections)} section(s)',
+            progress=0.08,
+            mode='refine',
+            status='started',
+            section_ids=target_sections,
+        )
+        retrieved = await retrieval_service.retrieve_relevant_chunks(instruction, original.working_set, limit=8)
+        retrieval_summary = retrieval_service.summarize_retrieval(retrieved)
+        yield self._sse(
+            {
+                'type': 'retrieval',
+                'mode': 'refine',
+                'summary': retrieval_summary,
+                'results': [item.model_dump() for item in retrieved],
+            }
+        )
+        yield self._stage(
+            'retrieval',
+            f"Retrieved {retrieval_summary['total_chunks']} passages to refine the draft",
+            progress=0.2,
+            mode='refine',
+            status='completed',
+        )
+
+        citations = self._build_citations(template.sections, retrieved)
+        yield self._sse({'type': 'citations', 'mode': 'refine', 'citations': [citation.model_dump() for citation in citations]})
+        yield self._stage(
+            'planning',
+            f'Refinement plan ready for {len(target_sections)} section(s)',
+            progress=0.34,
+            mode='refine',
+            status='completed',
+            section_ids=target_sections,
         )
 
         next_version = original.version + 1
-        new_draft_id = f'draft_{uuid4().hex[:10]}'
         merged_content = dict(original.content)
-        merged_content.update(refined_sections)
+        total_sections = max(len(target_sections), 1)
+        refined_sections: dict[str, str] = {}
+        for index, section in enumerate(template.sections, start=1):
+            if section.id not in target_sections:
+                continue
+            section_rank = list(target_sections).index(section.id) + 1
+            section_progress = 0.34 + ((section_rank - 1) / total_sections) * 0.46
+            yield self._stage(
+                'drafting',
+                f'Refining {section.title}',
+                progress=section_progress,
+                mode='refine',
+                status='started',
+                section=section.id,
+                section_title=section.title,
+            )
+            section_text = self._compose_section(
+                section.id,
+                section.title,
+                f'Refine the existing draft with this request: {instruction}',
+                selected_documents,
+                retrieved,
+                prior_content=original.content,
+            )
+            refined_sections[section.id] = section_text
+            merged_content[section.id] = section_text
+            for piece in self._chunk_text(section_text, chunk_size=140):
+                yield self._sse(
+                    {
+                        'type': 'content',
+                        'mode': 'refine',
+                        'section': section.id,
+                        'section_title': section.title,
+                        'text': piece,
+                    }
+                )
+                await asyncio.sleep(0.025)
+            yield self._stage(
+                'drafting',
+                f'{section.title} refinement complete',
+                progress=section_progress + (0.46 / total_sections),
+                mode='refine',
+                status='completed',
+                section=section.id,
+                section_title=section.title,
+            )
 
-        for section_id in target_sections:
-            yield self._sse({'type': 'status', 'message': f'Refining {section_id.replace("_", " ").title()}...'})
-            for piece in self._chunk_text(refined_sections[section_id], chunk_size=140):
-                yield self._sse({'type': 'content', 'section': section_id, 'text': piece})
-                await asyncio.sleep(0.03)
-
+        yield self._stage('persistence', 'Saving refined version and audit metadata', progress=0.92, mode='refine', status='started')
+        new_draft_id = f'draft_{uuid4().hex[:10]}'
         refined_draft = Draft(
             id=new_draft_id,
             template_id=original.template_id,
@@ -140,9 +280,19 @@ class DraftService:
                 'root_draft_id': refined_draft.root_draft_id,
                 'instruction': instruction,
                 'section_ids': target_sections,
+                'retrieval_summary': retrieval_summary,
             },
         )
-        yield self._sse({'type': 'done', 'draft_id': new_draft_id})
+        yield self._stage(
+            'persistence',
+            f'Refined draft saved as {new_draft_id}',
+            progress=0.99,
+            mode='refine',
+            status='completed',
+            draft_id=new_draft_id,
+            version=next_version,
+        )
+        yield self._sse({'type': 'done', 'mode': 'refine', 'draft_id': new_draft_id, 'version': next_version, 'title': refined_draft.title})
 
     async def save_draft(self, draft: Draft) -> None:
         await database.execute(
@@ -182,22 +332,47 @@ class DraftService:
             return None
         return self._row_to_draft(row)
 
+    async def save_manual_edit(self, draft_id: str, payload: DraftManualSave) -> Draft | None:
+        original = await self.get_draft(draft_id)
+        if original is None:
+            return None
+
+        merged_content = dict(original.content)
+        for section_id, value in payload.content.items():
+            merged_content[section_id] = value
+
+        next_version = original.version + 1
+        new_draft_id = f'draft_{uuid4().hex[:10]}'
+        now = datetime.utcnow()
+        edited_draft = Draft(
+            id=new_draft_id,
+            template_id=original.template_id,
+            title=(payload.title or original.title).strip() or original.title,
+            content=merged_content,
+            citations=original.citations,
+            working_set=original.working_set,
+            version=next_version,
+            root_draft_id=original.root_draft_id or original.id,
+            parent_draft_id=original.id,
+            created_at=now,
+            updated_at=now,
+        )
+        await self.save_draft(edited_draft)
+        await audit_service.log(
+            'draft.edited',
+            'draft',
+            edited_draft.id,
+            {
+                'parent_draft_id': original.id,
+                'root_draft_id': edited_draft.root_draft_id,
+                'sections_updated': list(payload.content.keys()),
+            },
+        )
+        return edited_draft
+
     async def list_recent_drafts(self, limit: int = 20) -> list[Draft]:
         rows = await database.fetch_all('SELECT * FROM drafts ORDER BY updated_at DESC LIMIT ?', (limit,))
         return [self._row_to_draft(row) for row in rows]
-
-    async def _generate_sections(self, section_specs, instruction: str, selected_documents, retrieved: list[SearchResult], prior_content: dict[str, str] | None = None) -> dict[str, str]:
-        generated_sections: dict[str, str] = {}
-        for section_id, section_title in section_specs:
-            generated_sections[section_id] = self._compose_section(
-                section_id,
-                section_title,
-                instruction,
-                selected_documents,
-                retrieved,
-                prior_content=prior_content,
-            )
-        return generated_sections
 
     def _build_citations(self, template_sections, retrieved: list[SearchResult]) -> list[Citation]:
         if not template_sections:
@@ -207,7 +382,12 @@ class DraftService:
                 section=template_sections[min(index, len(template_sections) - 1)].id,
                 document_id=item.document_id,
                 chunk_id=item.chunk_id,
+                document_title=item.document_title,
                 snippet=item.text[:220] + ('...' if len(item.text) > 220 else ''),
+                score=item.score,
+                keyword_score=item.keyword_score,
+                vector_score=item.vector_score,
+                matched_terms=item.matched_terms,
             )
             for index, item in enumerate(retrieved)
         ]
@@ -269,6 +449,18 @@ class DraftService:
 
     def _chunk_text(self, text: str, chunk_size: int = 160) -> list[str]:
         return [text[index:index + chunk_size] for index in range(0, len(text), chunk_size)]
+
+    def _stage(self, stage: str, message: str, progress: float, mode: str, status: str, **extra) -> str:
+        payload = {
+            'type': 'stage',
+            'stage': stage,
+            'status': status,
+            'message': message,
+            'progress': round(progress, 3),
+            'mode': mode,
+        }
+        payload.update(extra)
+        return self._sse(payload)
 
     def _sse(self, payload: dict) -> str:
         return f'data: {json.dumps(payload)}\n\n'

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import aiosqlite
 
-DATA_DIR = Path(__file__).resolve().parents[2] / 'data'
-UPLOADS_DIR = DATA_DIR / 'uploads'
-DB_PATH = DATA_DIR / 'studio.db'
+DEFAULT_DATA_DIR = Path(__file__).resolve().parents[2] / 'data'
+DATA_DIR = Path(os.getenv('STUDIO_DATA_DIR', str(DEFAULT_DATA_DIR))).expanduser().resolve()
+UPLOADS_DIR = Path(os.getenv('STUDIO_UPLOADS_DIR', str(DATA_DIR / 'uploads'))).expanduser().resolve()
+DB_PATH = Path(os.getenv('STUDIO_DB_PATH', str(DATA_DIR / 'studio.db'))).expanduser().resolve()
 
 
 def _row_factory(cursor, row):
@@ -59,7 +61,8 @@ async def init_db() -> None:
                 document_title TEXT NOT NULL,
                 text TEXT NOT NULL,
                 position INTEGER NOT NULL DEFAULT 0,
-                metadata TEXT NOT NULL
+                metadata TEXT NOT NULL,
+                embedding TEXT
             );
 
             CREATE TABLE IF NOT EXISTS drafts (
@@ -90,6 +93,7 @@ async def init_db() -> None:
         await _ensure_column(db, 'documents', 'source_name', 'TEXT')
         await _ensure_column(db, 'documents', 'source_kind', 'TEXT')
         await _ensure_column(db, 'chunks', 'position', 'INTEGER NOT NULL DEFAULT 0')
+        await _ensure_column(db, 'chunks', 'embedding', 'TEXT')
         await _ensure_column(db, 'drafts', 'root_draft_id', 'TEXT')
         await _ensure_column(db, 'drafts', 'parent_draft_id', 'TEXT')
 

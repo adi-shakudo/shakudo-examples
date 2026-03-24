@@ -40,6 +40,14 @@ class DocumentCreateText(BaseModel):
     summary: Optional[str] = None
 
 
+class DocumentCreateUrl(BaseModel):
+    url: str
+    title: Optional[str] = None
+    type: DocumentType = DocumentType.other
+    tags: List[str] = Field(default_factory=list)
+    date: Optional[str] = None
+
+
 class Chunk(BaseModel):
     id: str
     document_id: str
@@ -47,13 +55,19 @@ class Chunk(BaseModel):
     text: str
     position: int = 0
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    embedding: Optional[List[float]] = None
 
 
 class Citation(BaseModel):
     section: str
     document_id: str
     chunk_id: str
+    document_title: Optional[str] = None
     snippet: Optional[str] = None
+    score: Optional[float] = None
+    keyword_score: Optional[float] = None
+    vector_score: Optional[float] = None
+    matched_terms: List[str] = Field(default_factory=list)
 
 
 class TemplateSection(BaseModel):
@@ -95,10 +109,9 @@ class DraftRefine(BaseModel):
     section_ids: Optional[List[str]] = None
 
 
-class SearchQuery(BaseModel):
-    query: str
-    limit: int = 10
-    doc_ids: Optional[List[str]] = None
+class DraftManualSave(BaseModel):
+    title: Optional[str] = None
+    content: Dict[str, str] = Field(default_factory=dict)
 
 
 class SearchResult(BaseModel):
@@ -107,8 +120,23 @@ class SearchResult(BaseModel):
     document_title: str
     text: str
     score: float
+    keyword_score: float = 0.0
+    vector_score: float = 0.0
     matched_terms: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class SearchResponse(BaseModel):
+    query: str
+    summary: Dict[str, Any] = Field(default_factory=dict)
+    results: List[SearchResult] = Field(default_factory=list)
+
+
+class EmbeddingStats(BaseModel):
+    dimension: int
+    indexed_chunks: int
+    total_chunks: int
+    indexed_documents: int
 
 
 class AuditLog(BaseModel):

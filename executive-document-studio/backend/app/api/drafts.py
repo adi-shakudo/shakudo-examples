@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from app.models.schemas import DraftCreate, DraftRefine
+from app.models.schemas import DraftCreate, DraftManualSave, DraftRefine
 from app.services.draft_service import draft_service
 
 router = APIRouter()
@@ -30,6 +30,14 @@ async def refine_draft(draft_id: str, payload: DraftRefine):
         section_ids=payload.section_ids,
     )
     return StreamingResponse(generator, media_type='text/event-stream')
+
+
+@router.post('/{draft_id}/manual-save')
+async def save_manual_draft(draft_id: str, payload: DraftManualSave):
+    draft = await draft_service.save_manual_edit(draft_id, payload)
+    if draft is None:
+        raise HTTPException(status_code=404, detail='Draft not found')
+    return draft
 
 
 @router.get('/{draft_id}')

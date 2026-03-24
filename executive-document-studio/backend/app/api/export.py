@@ -26,8 +26,16 @@ async def export_draft(draft_id: str, format: str = Query('markdown')):
         content = export_service.to_html_bytes(draft)
         media_type = 'text/html'
         suffix = 'html'
+    elif format == 'docx':
+        content = export_service.to_docx_bytes(draft)
+        media_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        suffix = 'docx'
+    elif format == 'pdf':
+        content = export_service.to_pdf_bytes(draft)
+        media_type = 'application/pdf'
+        suffix = 'pdf'
     else:
-        raise HTTPException(status_code=400, detail='Supported export formats: markdown, text, html')
+        raise HTTPException(status_code=400, detail='Supported export formats: markdown, text, html, docx, pdf')
 
     await audit_service.log('draft.exported', 'draft', draft_id, {'format': format})
     return Response(

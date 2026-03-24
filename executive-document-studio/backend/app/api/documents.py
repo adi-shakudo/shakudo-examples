@@ -1,6 +1,6 @@
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
-from app.models.schemas import DocumentCreateText, DocumentType
+from app.models.schemas import DocumentCreateText, DocumentCreateUrl, DocumentType
 from app.services.document_service import document_service
 
 router = APIRouter()
@@ -14,6 +14,14 @@ async def list_documents():
 @router.post('/text')
 async def create_text_document(payload: DocumentCreateText):
     return await document_service.create_text_document(payload)
+
+
+@router.post('/url')
+async def create_url_document(payload: DocumentCreateUrl):
+    try:
+        return await document_service.create_url_document(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post('/upload')

@@ -14,8 +14,8 @@ const mono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Executive Document Studio',
-  description: 'Premium enterprise drafting workspace for live AI-assisted executive documents.',
+  title: 'GWL Memo Creation Studio',
+  description: 'Premium enterprise drafting workspace for live AI-assisted GWL memo creation.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.services import database
+from app.services.embedding_service import embedding_service
 
 DOCUMENTS = [
     {
@@ -96,7 +97,7 @@ async def seed_demo_data() -> None:
 
     now = datetime.utcnow().isoformat()
     await database.insert_many(
-        'INSERT INTO documents (id, title, type, tags, date, summary, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO documents (id, title, type, tags, date, summary, content, source_name, source_kind, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             (
                 item['id'],
@@ -106,6 +107,8 @@ async def seed_demo_data() -> None:
                 item['date'],
                 item['summary'],
                 item['content'],
+                item['title'],
+                'seed',
                 now,
                 now,
             )
@@ -124,11 +127,13 @@ async def seed_demo_data() -> None:
                     item['id'],
                     item['title'],
                     text,
+                    index,
                     database.dumps({'section': f'part_{index}', 'order': index}),
+                    None,
                 )
             )
     await database.insert_many(
-        'INSERT INTO chunks (id, document_id, document_title, text, metadata) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO chunks (id, document_id, document_title, text, position, metadata, embedding) VALUES (?, ?, ?, ?, ?, ?, ?)',
         chunk_rows,
     )
 
@@ -145,3 +150,5 @@ async def seed_demo_data() -> None:
             for item in TEMPLATES
         ],
     )
+
+    await embedding_service.reindex_all()
