@@ -9,12 +9,23 @@ A premium Next.js + FastAPI demo app for secure, grounded executive document dra
 - Grounded provenance / citation panel
 - Seeded George Weston-style mock documents and templates
 - Persisted draft records in SQLite
+- Real backend workflows for ingestion, retrieval, refinement, version history, audit logs, and exports
 
 ## Project structure
 
 - `frontend/` — Next.js 14 app
-- `backend/` — FastAPI backend with seeded demo data
+- `backend/` — FastAPI backend with seeded demo data and authoring APIs
 - `specs/` — original product/technical spec
+
+## Backend capabilities
+- `POST /api/documents/text` — create a document from raw text
+- `POST /api/documents/upload` — upload `.txt`, `.pdf`, or `.docx` and extract text
+- `GET /api/documents/search` — search across document chunks
+- `GET /api/documents/audit` — inspect recent audit trail entries
+- `POST /api/drafts/generate` — stream a new draft via SSE
+- `POST /api/drafts/{draft_id}/refine` — stream a refined draft version via SSE
+- `GET /api/drafts/{draft_id}/versions` — retrieve full draft lineage
+- `POST /api/export/{draft_id}?format=markdown|text|html` — export drafts in multiple formats
 
 ## Run locally
 
@@ -37,7 +48,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 Then open: http://localhost:3000
 
 ## Notes
-- The current backend uses lightweight seeded retrieval logic suitable for demo reliability.
+- The current backend uses deterministic retrieval/ranking and deterministic draft composition to maximize demo reliability.
 - The UI is optimized to feel premium and enterprise-grade, with strong visual surfaces and visible runtime state.
-- Export currently supports markdown.
-- This is a solid demo foundation for future upgrades to real embedding/vector infrastructure, auth, and document ingestion.
+- The backend now supports uploads, chunking, refinement, lineage, audit logs, and richer exports.
+- Future upgrades can swap in true embeddings/vector infrastructure, auth, and production storage.

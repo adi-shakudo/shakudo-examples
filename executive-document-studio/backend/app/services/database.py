@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 import aiosqlite
 
 DATA_DIR = Path(__file__).resolve().parents[2] / 'data'
+UPLOADS_DIR = DATA_DIR / 'uploads'
 DB_PATH = DATA_DIR / 'studio.db'
 
 
@@ -14,8 +15,19 @@ def _row_factory(cursor, row):
     return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
 
 
+async def _ensure_column(db: aiosqlite.Connection, table: str, column: str, definition: str) -> None:
+    cursor = await db.execute(f'PRAGMA table_info({table})')
+    rows = await cursor.fetchall()
+    await cursor.close()
+    columns = {row[1] for row in rows}
+    if column not in columns:
+        await db.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
+
+
 async def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(
             '''
@@ -27,6 +39,8 @@ async def init_db() -> None:
                 date TEXT,
                 summary TEXT,
                 content TEXT,
+                source_name TEXT,
+                source_kind TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
@@ -44,6 +58,7 @@ async def init_db() -> None:
                 document_id TEXT NOT NULL,
                 document_title TEXT NOT NULL,
                 text TEXT NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0,
                 metadata TEXT NOT NULL
             );
 
@@ -55,11 +70,29 @@ async def init_db() -> None:
                 citations TEXT NOT NULL,
                 working_set TEXT NOT NULL,
                 version INTEGER NOT NULL,
+                root_draft_id TEXT,
+                parent_draft_id TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id TEXT PRIMARY KEY,
+                action TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                metadata TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
             '''
         )
+
+        await _ensure_column(db, 'documents', 'source_name', 'TEXT')
+        await _ensure_column(db, 'documents', 'source_kind', 'TEXT')
+        await _ensure_column(db, 'chunks', 'position', 'INTEGER NOT NULL DEFAULT 0')
+        await _ensure_column(db, 'drafts', 'root_draft_id', 'TEXT')
+        await _ensure_column(db, 'drafts', 'parent_draft_id', 'TEXT')
+
         await db.commit()
 
 
@@ -88,14 +121,18 @@ async def execute(query: str, params: tuple[Any, ...] = ()) -> None:
 
 
 async def insert_many(query: str, rows: list[tuple[Any, ...]]) -> None:
+    if not rows:
+        return
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executemany(query, rows)
         await db.commit()
 
 
 def dumps(value: Any) -> str:
-    return json.dumps(value)
+    return json.dumps(value, ensure_ascii=False)
 
 
-def loads(value: str) -> Any:
+def loads(value: str | None) -> Any:
+    if value is None:
+        return None
     return json.loads(value)

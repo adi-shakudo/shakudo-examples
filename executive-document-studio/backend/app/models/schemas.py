@@ -25,8 +25,19 @@ class Document(BaseModel):
     date: Optional[str] = None
     summary: Optional[str] = None
     content: Optional[str] = None
+    source_name: Optional[str] = None
+    source_kind: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class DocumentCreateText(BaseModel):
+    title: str
+    type: DocumentType = DocumentType.other
+    tags: List[str] = Field(default_factory=list)
+    date: Optional[str] = None
+    content: str
+    summary: Optional[str] = None
 
 
 class Chunk(BaseModel):
@@ -34,6 +45,7 @@ class Chunk(BaseModel):
     document_id: str
     document_title: str
     text: str
+    position: int = 0
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -66,6 +78,8 @@ class Draft(BaseModel):
     citations: List[Citation] = Field(default_factory=list)
     working_set: List[str] = Field(default_factory=list)
     version: int = 1
+    root_draft_id: Optional[str] = None
+    parent_draft_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -81,10 +95,26 @@ class DraftRefine(BaseModel):
     section_ids: Optional[List[str]] = None
 
 
+class SearchQuery(BaseModel):
+    query: str
+    limit: int = 10
+    doc_ids: Optional[List[str]] = None
+
+
 class SearchResult(BaseModel):
     chunk_id: str
     document_id: str
     document_title: str
     text: str
     score: float
+    matched_terms: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AuditLog(BaseModel):
+    id: str
+    action: str
+    entity_type: str
+    entity_id: str
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.utcnow)

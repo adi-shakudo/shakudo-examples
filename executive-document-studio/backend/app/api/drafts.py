@@ -1,10 +1,15 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from app.models.schemas import DraftCreate
+from app.models.schemas import DraftCreate, DraftRefine
 from app.services.draft_service import draft_service
 
 router = APIRouter()
+
+
+@router.get('')
+async def list_recent_drafts(limit: int = 20):
+    return await draft_service.list_recent_drafts(limit=limit)
 
 
 @router.post('/generate')
@@ -13,6 +18,16 @@ async def generate_draft(payload: DraftCreate):
         template_id=payload.template_id,
         doc_ids=payload.doc_ids,
         instruction=payload.instruction,
+    )
+    return StreamingResponse(generator, media_type='text/event-stream')
+
+
+@router.post('/{draft_id}/refine')
+async def refine_draft(draft_id: str, payload: DraftRefine):
+    generator = draft_service.refine_draft_stream(
+        draft_id=draft_id,
+        instruction=payload.instruction,
+        section_ids=payload.section_ids,
     )
     return StreamingResponse(generator, media_type='text/event-stream')
 
